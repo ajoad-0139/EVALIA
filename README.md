@@ -209,7 +209,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <div align="center">
   <p>Made with ❤️ by the Evalia Team</p>
   <p>
-    <a href="https://github.com/Imran-2020331101/evalia">⭐ Star us on GitHub</a> |
+    <a href="https://github.com/ajoad-0139/EVALIA/">⭐ Star us on GitHub</a> |
     <a href="mailto:evalia.apostrophe@gmail.com">📧 Contact Support</a>
   </p>
 
