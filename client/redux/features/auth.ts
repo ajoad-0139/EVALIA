@@ -1,0 +1,321 @@
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import type { RootState } from "../lib/store";
+import axios from "axios";
+import { toast } from "sonner";
+
+export const createOrganization = createAsyncThunk('auth/createOrganization',async(data:any,thunkAPI)=>{
+    try {
+        const response = await axios.post('http://localhost:8080/api/organization/new',data, {withCredentials:true})
+        console.log(response.data, 'organization')
+        return response.data;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed creating organization' })
+    }
+})
+
+export const getAllOrganizations = createAsyncThunk('auth/getAllOrganization',async(_,thunkAPI)=>{
+    try {
+        const response = await axios.get('http://localhost:8080/api/organization/all',{withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed fetching organizations' })
+    }
+})
+
+export const deleteOrganization = createAsyncThunk('auth/deleteOrganization', async(organizationId:string,thunkAPI)=>{
+    try {
+        const response = await axios.delete(`http://localhost:8080/api/organization/${organizationId}`,{withCredentials:true})
+        return organizationId;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed deleting organizations' })
+    }
+})
+
+export const updateOrganization = createAsyncThunk('auth/updateOrganization', async({organizationId, data}:{organizationId:string, data:any},thunkAPI)=>{
+    try {
+        const response = await axios.patch(`http://localhost:8080/api/organization/${organizationId}`,data,{withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed Editing organizations' })
+    }
+})
+
+export const fetchUserData = createAsyncThunk('auth/fetchUserData', async(_,thunkAPI)=>{
+    try {
+        const response = await axios.get(`http://localhost:8080/api/user/profile`,{withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        // toast.error(error.response?error.response.data:'Failed fetching user data')
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed fetching user data' })
+    }
+})
+export const updateUserData = createAsyncThunk('auth/updateUserData', async(data:any, thunkAPI)=>{
+    try {
+        const response = await axios.patch(`http://localhost:8080/api/user/update/details`,data,{withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        // toast.error(error.response?error.response.data:'Failed fetching user data')
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed updating user data' })
+    }
+})
+export const updateUserCoverPhoto = createAsyncThunk('auth/updateUserCoverPhoto',async(formData:any,thunkAPI)=>{
+    try {
+        const response = await axios.post('http://localhost:8080/api/user/update/cover-photo',formData,{withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed updating user cover photo' })
+    }
+})
+export const updateUserProfilePhoto = createAsyncThunk('auth/updateUserProfilePhoto',async(formData:any,thunkAPI)=>{
+    try {
+        const response = await axios.post('http://localhost:8080/api/user/update/profile-photo',formData,{withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed updating user cover photo' })
+    }
+})
+
+export const analyzeResume = createAsyncThunk('auth/analyzeResume', async(_, thunkAPI)=>{
+    try {
+        const response = await axios.get('http://localhost:8080/api/resume/extract', {withCredentials:true})
+        return response.data;
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed analyzing user resume' })
+    }
+})
+
+export const saveAnalyzedResume = createAsyncThunk('auth/saveAnalyzedResume',async(resumeData:any,thunkAPI)=>{
+    try {
+        const response = await axios.post('http://localhost:8080/api/resume/save', resumeData,{withCredentials:true})
+        return resumeData
+    } catch (error:any) {
+        return thunkAPI.rejectWithValue(error.response? { message: error.response.data } : { message: 'Failed analyzing user resume' })
+    }
+})
+
+
+type statusType = 'idle'|'pending'|'error'|'success';
+interface initialStateType {
+    userStatus:statusType
+    user: null | any,
+    isSignedIn:boolean,
+    analyzedUserResume:any,
+    orgCreationStatus:statusType,
+    orgFetchStatus:statusType,
+    orgDeleteStatus:statusType,
+    orgUpdateStatus:statusType,
+    userBasicInfoUpdateStatus:statusType,
+    userCoverPhotoUpdateStatus:statusType,
+    userProfilePhotoUpdateStatus:statusType,
+    analyzeUserResumeStatus:statusType,
+    saveUserResumeStatus:statusType,
+    organizations : any[], // type will be updated
+    registerFormData:{
+        name:string,
+        email:string,
+        password:string,
+        role:string | null
+    }
+}
+
+const initialState :initialStateType={
+    userStatus:'idle',
+    user:null,
+    analyzedUserResume:null,
+    orgCreationStatus:'idle',
+    orgFetchStatus:'idle',
+    orgDeleteStatus:'idle',
+    orgUpdateStatus:'idle',
+    userCoverPhotoUpdateStatus:'idle',
+    userProfilePhotoUpdateStatus:'idle',
+    userBasicInfoUpdateStatus:'idle',
+    analyzeUserResumeStatus:'idle',
+    saveUserResumeStatus:'idle',
+    organizations:[],
+    isSignedIn:false,
+    registerFormData:{
+        name:'',
+        email:'',
+        password:'',
+        role:null
+    }
+}
+
+const authSlice = createSlice({
+    name:'auth',
+    initialState,
+    reducers:{
+        setFormData(state, action: {
+            payload: {
+            name: keyof typeof state.registerFormData;
+            value: string | null;
+            };
+        }){
+            state.registerFormData[action.payload.name] = action.payload.value as any;
+        },
+        resetUser(state){
+            state.user=null;
+        },
+        setOrgCreationStatus(state, action){
+            state.orgCreationStatus=action.payload
+        },
+        setOrgFetchStatus(state, action){
+            state.orgFetchStatus= action.payload
+        },
+        setOrgDeleteStatus(state, action){
+            state.orgDeleteStatus=action.payload
+        },
+        setOrgUpdateStatus(state, action){
+            state.orgUpdateStatus=action.payload
+        },
+        setUserCoverPhotoStatus(state, action){
+            state.userCoverPhotoUpdateStatus=action.payload
+        },
+        setUserProfilePhotoStatus(state, action){
+            state.userProfilePhotoUpdateStatus=action.payload
+        },
+        setUserBasicInfoUpdateStatus(state, action){
+            state.userBasicInfoUpdateStatus=action.payload
+        },
+        setAnalyzeUserResumeStatus(state, action){
+            state.analyzeUserResumeStatus=action.payload
+        },
+        setResume(state, action){
+            state.user.user.resumeUrl=action.payload;
+        },
+        setIsSingedIn(state, action){
+            state.isSignedIn=action.payload;
+        }
+    },
+    extraReducers(builder){
+        builder
+        .addCase(fetchUserData.pending,(state)=>{
+            state.userStatus='pending'
+        })
+        .addCase(fetchUserData.rejected,(state)=>{
+            state.userStatus='error'
+        })
+        .addCase(fetchUserData.fulfilled,(state,action)=>{
+            console.log(action.payload,'user data fetched');
+            state.user=action.payload.data;
+            state.userStatus='success'
+        })
+        .addCase(updateUserData.pending,(state)=>{
+            state.userBasicInfoUpdateStatus='pending'
+        })
+        .addCase(updateUserData.rejected,(state)=>{
+            state.userBasicInfoUpdateStatus='error'
+        })
+        .addCase(updateUserData.fulfilled,(state,action)=>{
+            console.log(action.payload, 'updated user basic info')
+            state.user.user=action.payload.data;
+            state.userBasicInfoUpdateStatus='success'
+        })
+        .addCase(createOrganization.pending,(state)=>{
+            state.orgCreationStatus='pending'
+        })
+        .addCase(createOrganization.rejected,(state)=>{
+            state.orgCreationStatus='error'
+        })
+        .addCase(createOrganization.fulfilled,(state,action)=>{
+            state.organizations.push(action.payload);
+            state.orgCreationStatus='success'
+        })
+        .addCase(getAllOrganizations.pending,(state)=>{
+            state.orgFetchStatus='pending'
+        })
+        .addCase(getAllOrganizations.rejected,(state)=>{
+            state.orgFetchStatus='error'
+        })
+        .addCase(getAllOrganizations.fulfilled,(state,action)=>{
+            console.log(action.payload.data, 'all organizations')
+            state.organizations =action.payload.data;
+            state.orgFetchStatus='success'
+        })
+        .addCase(deleteOrganization.pending,(state)=>{
+            state.orgDeleteStatus='pending'
+        })
+        .addCase(deleteOrganization.rejected,(state)=>{
+            state.orgDeleteStatus='error'
+        })
+        .addCase(deleteOrganization.fulfilled,(state,action)=>{
+            const newOrganizations = state.organizations.filter((item)=>item.id!==action.payload);
+            state.organizations = newOrganizations;
+            state.orgDeleteStatus='success'
+        })
+        .addCase(updateOrganization.pending,(state)=>{
+            state.orgUpdateStatus='pending'
+        })
+        .addCase(updateOrganization.rejected,(state)=>{
+            state.orgUpdateStatus='error'
+        })
+        .addCase(updateOrganization.fulfilled,(state,action)=>{
+            const newOrganizations = state.organizations.filter((item)=>item.id!==action.payload.data.id)
+            newOrganizations.push(action.payload.data)
+            state.organizations=newOrganizations;
+            state.orgUpdateStatus='success'
+        })
+        .addCase(updateUserCoverPhoto.pending,(state)=>{
+            state.userCoverPhotoUpdateStatus='pending'
+        })
+        .addCase(updateUserCoverPhoto.rejected,(state)=>{
+            state.userCoverPhotoUpdateStatus='error'
+        })
+        .addCase(updateUserCoverPhoto.fulfilled,(state,action)=>{
+            console.log(action.payload,'updated cover photo')
+            state.user.user.coverPictureUrl=action.payload.url;
+            state.userCoverPhotoUpdateStatus='success'
+        })
+        .addCase(updateUserProfilePhoto.pending,(state)=>{
+            state.userProfilePhotoUpdateStatus='pending'
+        })
+        .addCase(updateUserProfilePhoto.rejected,(state)=>{
+            state.userProfilePhotoUpdateStatus='error'
+        })
+        .addCase(updateUserProfilePhoto.fulfilled,(state,action)=>{
+            console.log(action.payload,'updated profile photo')
+            state.user.user.profilePictureUrl=action.payload.url;
+            state.userProfilePhotoUpdateStatus='success'
+        })
+        .addCase(analyzeResume.pending,(state)=>{
+            state.analyzeUserResumeStatus='pending'
+        })
+        .addCase(analyzeResume.rejected,(state)=>{
+            state.analyzeUserResumeStatus='error'
+        })
+        .addCase(analyzeResume.fulfilled,(state,action)=>{
+            console.log(action.payload,'resume analysis')
+            state.analyzedUserResume=action.payload.data;
+            state.analyzeUserResumeStatus='success'
+        })
+        .addCase(saveAnalyzedResume.pending,(state)=>{
+            state.saveUserResumeStatus='pending'
+        })
+        .addCase(saveAnalyzedResume.rejected,(state)=>{
+            state.saveUserResumeStatus='error'
+        })
+        .addCase(saveAnalyzedResume.fulfilled,(state,action)=>{
+            console.log(action.payload,'upload resume data ')
+            state.user.resumeData=action.payload;
+            state.saveUserResumeStatus='success'
+        })
+    }
+})
+
+export default authSlice.reducer;
+export const {resetUser,setFormData, setOrgCreationStatus, setOrgFetchStatus,setOrgUpdateStatus, setUserBasicInfoUpdateStatus, setResume, setAnalyzeUserResumeStatus, setIsSingedIn}= authSlice.actions;
+export const currentFormData = (state:RootState)=>state.auth.registerFormData
+export const user = (state:RootState) => state.auth.user;
+export const userStatus = (state:RootState) => state.auth.userStatus;
+export const organizations = (state:RootState) => state.auth.organizations;
+export const orgCreationStatus = (state:RootState) => state.auth.orgCreationStatus;
+export const orgFetchStatus = (state:RootState) => state.auth.orgFetchStatus;
+export const orgUpdateStatus = (state:RootState) => state.auth.orgUpdateStatus;
+export const orgDeleteStatus = (state:RootState) => state.auth.orgDeleteStatus;
+export const userCoverPhotoUpdateStatus = (state:RootState) => state.auth.userCoverPhotoUpdateStatus;
+export const userProfilePhotoUpdateStatus = (state:RootState) => state.auth.userProfilePhotoUpdateStatus;
+export const userBasicInfoUpdateStatus = (state:RootState) => state.auth.userBasicInfoUpdateStatus;
+export const analyzeUserResumeStatus = (state:RootState) => state.auth.analyzeUserResumeStatus;
+export const saveUserResumeStatus = (state:RootState) => state.auth.saveUserResumeStatus;
+export const analyzedUserResume = (state:RootState)=>state.auth.analyzedUserResume;
+export const isSignedIn = (state:RootState) =>state.auth.isSignedIn;

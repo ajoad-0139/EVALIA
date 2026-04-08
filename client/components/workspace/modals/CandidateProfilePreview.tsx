@@ -1,0 +1,256 @@
+'use client'
+
+import Image from "next/image"
+import axios from "axios"
+import bg from '../../../public/gradient_bg.jpg'
+import {  File, Mail, MapPin, Menu, SlidersVertical, User, X } from "lucide-react"
+
+import linkedIn from '../../../public/linkedin.svg'
+import github from '../../../public/github.svg'
+import lego from '../../../public/lego.png'
+
+import { useRef, useState, useEffect } from "react"
+import { useAppDispatch, useAppSelector } from "@/redux/lib/hooks"
+import { compatibilityReviewId, previewedCandidate, setCompatibilityReviewId, setPreviewedCandidate } from "@/redux/features/utils"
+import CandidatesResumePanel from "../../utils/CandidatesResumePanel"
+
+const CandidateProfilePreview = () => {
+    const modalRef = useRef<HTMLDivElement>(null)
+    const resumePreviewContainerRef = useRef<HTMLDivElement>(null)
+    const [isShowModal , setIsShowModal] = useState(false)
+    const [compatibilityReport, setCompatibilityReport] = useState<any>(null)
+    const [isShowResume, setIsShowResume]=useState<boolean>(false);
+
+    const dispatch = useAppDispatch()
+
+    const currentPreviewedCandidate = useAppSelector(previewedCandidate)
+    const currentReviewId = useAppSelector(compatibilityReviewId);
+
+    const  candidate = currentPreviewedCandidate?.user
+    const resumeData = currentPreviewedCandidate?.resumeData
+
+    const generateCompatibilityReview = async(reviewId:any)=>{
+        console.log('compatibility id review', reviewId)
+        try {
+            const response = await axios.get(`http://localhost:8080/api/compatibility/${reviewId}`,{withCredentials:true})
+            console.log(response.data);
+
+            setCompatibilityReport(response.data.data);
+            setIsShowModal(true);
+        } catch (error:any) {
+            console.log(error)
+        }
+    }
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+            modalRef.current &&
+            !modalRef.current.contains(event.target as Node)
+            ) {
+                setIsShowModal(false);
+                setCompatibilityReport(null);
+                dispatch(setPreviewedCandidate(null));
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+     useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+          if (resumePreviewContainerRef.current && !resumePreviewContainerRef.current.contains(event.target as Node)) {
+             setIsShowResume(false);
+          }
+        }
+    
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+          document.removeEventListener("mousedown", handleClickOutside);
+        };
+      }, [ isShowResume]);
+    useEffect(()=>console.log(currentReviewId,'current review id '))
+  return (
+    <div className={`z-[130] top-0 left-0 right-0 bottom-0 backdrop-blur-sm ${currentPreviewedCandidate?'fixed':'hidden'} `}>
+      <div className="absolute z-10 top-2 right-2">
+        <X size={25} className=""/>
+      </div>
+      <div className="w-full h-full flex justify-center items-center">
+        <div ref={modalRef} className="w-[70%] h-[90%] flex border border-slate-800 rounded-md">
+            <section className='w-1/2 h-full shrink-0  relative'>
+                <div className="w-full h-full ">
+                    <Image width={500} height={800} className="w-full h-full object-cover rounded-md" src={bg} alt=''/>
+                </div>
+                <div className="absolute top-0 left-0 w-full h-full bg-gray-900/90 flex flex-col justify-start items-center pt-[15%] gap-2">
+                    <div className="w-[150px] h-[150px] flex justify-center items-center rounded-full bg-slate-900">
+                       {
+                        candidate?  
+                        candidate?.profilePictureUrl ? (
+                            <Image
+                            width={200}
+                            height={200}
+                            alt="profile pic"
+                            src={candidate?.profilePictureUrl}
+                            className="w-full h-full object-cover rounded-full"
+                            />
+                        ) : (
+                            <User className="text-gray-300 w-10 h-10" />
+                        )
+                        :null
+                       }
+                    </div>
+                    <p className="text-lg font-semibold tracking-widest scale-120 mt-2">{candidate?.name||''}</p>
+                    <div className="flex text-sm items-center gap-3 text-gray-300">
+                        <div className="flex items-center gap-1">
+                            <MapPin size={14} className="text-blue-400"/> 
+                            <p>{candidate?.location || ''}</p>
+                        </div>
+                        <p>|</p>
+                        <div className="flex items-center gap-1">
+                            <Mail size={14} className="text-blue-400"/> 
+                            <p>{candidate?.email || ''}</p>
+                        </div>
+                        {
+                    candidate?.resumeUrl && <div className="flex gap-2 items-center ">
+                            <p>|</p>
+                            <File size={14} className="text-blue-400 "/>
+                            <button onClick={()=>setIsShowResume(true)} className="flex flex-col text-[11px] text-gray-300">
+                            <p className="">Resume.pdf</p>
+                            {/* <p className="">200.20kb</p> */}
+                            </button>
+                        </div>
+                    }
+                    </div>
+                    <div className="w-[65%] h-auto mt-2">
+                        <p className="text-center text-[12px] text-gray-300">{candidate?.aboutMe || ''}</p>
+                    </div>
+                    {
+                          isShowResume && <div className="fixed top-0 left-0 right-0 bottom-0 backdrop-blur-sm z-[150] flex justify-center items-center">
+                              <div ref={resumePreviewContainerRef} className="w-[50%] h-[95%] shrink-0 bg-gray-200 rounded-lg overflow-y-scroll scroll-container">
+                                <iframe src={candidate.resumeUrl || ''} width="100%" height="auto" className="w-full h-full object-contain"></iframe>
+                              </div>
+                        </div>
+                        }
+                    
+                </div>
+                {/* <div className="absolute bottom-0 w-full h-[120px]  z-10 flex justify-center items-center gap-6">
+                    <button className="p-1 cursor-pointer rounded-full border border-blue-500">
+                        <Image  className="w-[25px] h-auto object-contain" src={linkedIn} alt=""/>
+                    </button>
+                    <button className="p-1 cursor-pointer rounded-full border border-blue-500">
+                        <Image  className="w-[25px] h-auto object-contain" src={github} alt=""/>
+                    </button>
+                </div> */}
+            </section>
+            <section className='w-1/2 h-full shrink-0 bg-slate-900 border-l-[1px] border-slate-700 relative flex flex-col'>
+                <section className="absolute top-2 right-2 z-10">
+                    <button onClick={()=>setIsShowModal((prev)=>!prev)} className="cursor-pointer text-gray-200 hover:text-white ">
+                        <Menu size={20} />
+                    </button>
+                </section>
+                <CandidatesResumePanel resumeData={resumeData} isScroll={true}/>
+                <section className={`absolute top-0 right-0 w-full h-full transition-transform duration-300 origin-top-right bg-slate-900 flex flex-col py-[20px] px-[30px] pt-[10%] overflow-y-scroll scroll-container ${isShowModal?'scale-100':'scale-0'}`}>
+                    { isShowModal && compatibilityReport?
+                     <>
+                        <h2 className="text-xl font-semibold text-white mb-4">
+                        Application Compatibility Review
+                        </h2>
+
+                        {/* Summary */}
+                        <div className="mb-6 ">
+                            <p className="text-sm text-gray-300">
+                                An assessment of how the candidate’s profile aligns with the position’s
+                                required competencies and qualifications.
+                            </p>
+                            <div className="mt-3 flex items-center gap-3">
+                            <span className="px-3 py-1 bg-green-800/30 text-green-400 text-xs rounded-full">
+                                Overall Match: {compatibilityReport?.matchPercentage}%
+                            </span>
+                            <span className="px-3 py-1 bg-yellow-800/30 text-yellow-400 text-xs rounded-full">
+                                {compatibilityReport?.fit}
+                            </span>
+                            </div>
+                        </div>
+
+                        {/* Strengths */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold  mb-2">Strengths</h3>
+                            <ul className="space-y-2 ml-4">
+                            {
+                                compatibilityReport?.strengths?.map((item:any,index:any)=><li key={index} className="flex items-end gap-2">
+                                <span className="text-green-400 mt-1">✔</span>
+                                <div>
+                                <p className="text-xs text-gray-400">
+                                    {item}
+                                </p>
+                                </div>
+                            </li>)
+                            }
+                            </ul>
+                        </div>
+
+                        {/* Weaknesses */}
+                        <div>
+                            <h3 className="text-lg font-semibold  mb-2">Weaknesses</h3>
+                            <ul className="space-y-2  ml-6">
+                            {
+                                compatibilityReport?.weaknesses?.map((item:any, index:any)=><li key={index} className="flex items-center gap-2">
+                                <span className="text-red-400 mt-1">✘</span>
+                                <div>
+                                <p className="text-xs text-gray-400">
+                                    {item}
+                                </p>
+                                </div>
+                            </li>)
+                            }
+                            </ul>
+                        </div>
+                     </>:
+                     <div className="w-full h-full flex flex-col justify-start items-center pt-[5%]">
+                        <div className="mb-6">
+                            <Image src={lego} alt="" className="w-[130px] h-auto"/>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-xl font-semibold text-white mb-3">
+                            Application Compatibility Review
+                        </h2>
+
+                        {/* Why it’s useful */}
+                        <p className="text-[13px] text-center text-gray-300 max-w-md mb-4">
+                            Evaluate how closely a candidate’s profile aligns with the job’s
+                            requirements. This summary highlights strengths, identifies potential gaps,
+                            and helps you make faster, data-driven hiring decisions.
+                        </p>
+
+                        {/* How we do it */}
+                        <div className="bg-slate-800/50 border border-slate-700 rounded-md p-4 max-w-md text-left text-sm text-gray-300 mb-6">
+                            <p className="font-semibold text-white mb-2">How We Generate This Report</p>
+                            <ul className="list-disc text-[12px] list-inside space-y-1 pl">
+                            <li>Compare candidate’s CV data with job requirements.</li>
+                            <li>Analyze skills, education, and experience matches.</li>
+                            <li>Highlight strengths and areas for improvement.</li>
+                            <li>Provide a role-specific suitability score.</li>
+                            </ul>
+                        </div>
+
+                        {/* Action Button */}
+                        <button
+                            onClick={()=>generateCompatibilityReview(currentReviewId)}
+                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-md cursor-pointer text-white text-sm font-semibold shadow"
+                        >
+                            Generate Compatibility Review
+                        </button>
+                     </div>}
+                </section>
+            </section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default CandidateProfilePreview

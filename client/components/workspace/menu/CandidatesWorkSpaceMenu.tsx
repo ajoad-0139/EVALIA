@@ -1,0 +1,157 @@
+'use client'
+
+import { Major_Mono_Display } from "next/font/google"
+import { useEffect, useState } from "react";
+import { useDeepCompareEffect } from "@/custom-hooks/useDeepCompareEffect";
+import Image from "next/image";
+import Link from "next/link";
+
+import coursesLogo from '../../../public/course-icon.svg'
+import bookMarkLogo from '../../../public/book-mark.svg'
+import exploreLogo from '../../../public/search-icon.svg'
+import jobLogo from '../../../public/job-icon.svg'
+import allLogo from '../../../public/all.svg'
+import completedLogo from '../../../public/completed.svg'
+import pendingLogo from '../../../public/pending.svg'
+import interviewLogo from '../../../public/interview.svg'
+import expiredLogo from '../../../public/ban.svg'
+import { useAppDispatch, useAppSelector } from "@/redux/lib/hooks";
+import { user } from "@/redux/features/auth";
+import { Bell } from "lucide-react";
+import { allNotifications } from "@/redux/features/notification";
+import ProgressLink from "@/components/utils/ProgressLink";
+import { appliedJobs, getAllAppliedJobs, getAllSavedJobs, savedJobs } from "@/redux/features/job";
+import { getAllSavedCourses, savedCourses } from "@/redux/features/course";
+import { allInterviews, getallInterviews } from "@/redux/features/interview";
+
+const majorMono = Major_Mono_Display({ weight: '400', subsets: ['latin'] });
+
+const CandidatesWorkSpaceMenu = () => {
+  const [isShowCourseCategory, setIsShowCourseCategory]=useState(true);
+  const [isShowJobCategory, setIsShowJobCategory]=useState(true);
+  const [isShowInterviewCategory, setIsShowInterviewCategory]=useState(true);
+  const [unreadNotificationCount, setUnreadNotificationCount]=useState<number>(0);
+  const [completedInterviewCount, setCompletedInterviewCount]=useState<number>(0);
+  const [pendingInterviewCount, setPendingInterviewCount]=useState<number>(0);
+  const [expiredInterviewCount, setExpiredInterviewCount]=useState<number>(0);
+
+  const dispatch = useAppDispatch();
+
+  const currentNotifications=useAppSelector(allNotifications);
+  const currentAllSavedJobs = useAppSelector(savedJobs)||[];
+  const currentAppliedJobs = useAppSelector(appliedJobs)||[];
+  const currentSavedCourses = useAppSelector(savedCourses)||[];
+  const currentAllInterviews = useAppSelector(allInterviews)||[];
+
+  const currentUser = useAppSelector(user);
+
+
+  useEffect(()=>{
+    const completedInterviews = currentAllInterviews?.filter((item:any)=>item.interviewStatus==='COMPLETED') || [];
+    setCompletedInterviewCount(completedInterviews.length);
+    const pendingInterviews = currentAllInterviews?.filter((item:any)=>item.interviewStatus==='PENDING')||[];
+    setPendingInterviewCount(pendingInterviews.length);
+    
+  },[currentAllInterviews?.length])
+
+  useDeepCompareEffect(()=>{
+      let count =0 ;
+      currentNotifications?.map((item:any)=>{if(!item.isRead)count+=1;})
+      if(count!==unreadNotificationCount) setUnreadNotificationCount(count);
+      if(!currentAllSavedJobs?.length ) {
+        dispatch(getAllSavedJobs())
+      }
+      if(!currentAppliedJobs.length) {
+            dispatch(getAllAppliedJobs())
+          }
+      if(!currentSavedCourses?.length){
+            dispatch(getAllSavedCourses())
+          }
+      if(!currentAllInterviews?.length){dispatch(getallInterviews());}
+    },[currentNotifications])
+  return (
+    <div className='w-full h-full flex flex-col justify-between px-[10px] py-[6%] relative pt-[60px]'>
+      <div className="flex justify-between items-end px-4 absolute top-4 left-0 w-full">
+          <ProgressLink href={'/'} className={`${majorMono.className} text-2xl `}>EVALIA</ProgressLink>
+          <ProgressLink href={'/workspace/notifications'} className="relative inline-block ">
+              {/* Bell Icon */}
+              <Bell className="text-gray-100 size-6" />
+
+              {/* Badge */}
+              {unreadNotificationCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
+                  {unreadNotificationCount}
+                </span>
+              )}
+            </ProgressLink>
+        </div>
+      <div className="w-full h-auto flex flex-col justify-start">
+        
+        <div className="w-full h-auto mt-[20px] flex flex-col justify-start items-start pl-[10px] text-gray-400 font-semibold">
+          <button className="flex justify-start items-center gap-1" onClick={()=>setIsShowJobCategory((prev)=>!prev)}>
+            <Image src={jobLogo} alt="coursesLogo" className="h-[15px] w-auto"/>
+            <p className="hover:text-gray-100 text-gray-200">Jobs</p>
+          </button>
+          <ul className={`pl-4 ${isShowJobCategory?'flex flex-col':'hidden'}  gap-1`}>
+            <ProgressLink prefetch href={'/workspace/jobs/saved'} className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={bookMarkLogo} alt="saved" className="h-[13px] w-auto"/>
+              <p className="text-sm  cursor-pointer">Saved ({currentAllSavedJobs?.length})</p>
+            </ProgressLink>
+            <ProgressLink prefetch href={'/workspace/jobs/explore'} className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={exploreLogo} alt="explore" className="h-[13px] w-auto"/>
+              <p className="text-sm  cursor-pointer">Explore</p>
+            </ProgressLink>
+            <ProgressLink prefetch href={'/workspace/jobs/applied'} className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={completedLogo} alt="applied" className="h-[13px] w-auto"/>
+              <p className="text-sm  cursor-pointer">Applied ({currentAppliedJobs?.length})</p>
+            </ProgressLink>
+          </ul>
+          <button className="flex justify-start items-center gap-1 mt-2" onClick={()=>setIsShowCourseCategory((prev)=>!prev)}>
+            <Image src={coursesLogo} alt="coursesLogo" className="h-[17px] w-auto"/>
+            <p className="hover:text-gray-100 text-gray-200">Courses</p>
+          </button>
+          <ul className={`pl-4 ${isShowCourseCategory?'flex flex-col':'hidden'} gap-1`}>
+            <Link href={'/workspace/courses/saved'} className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={bookMarkLogo} alt="saved" className="h-[13px] w-auto"/>
+              <p className="text-sm  cursor-pointer">Saved ({currentSavedCourses?.length})</p>
+            </Link>
+            <Link href={'/workspace/courses/explore'} className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={exploreLogo} alt="explore" className="h-[13px] w-auto"/>
+              <p className="text-sm  cursor-pointer">Explore</p>
+            </Link>
+          </ul>
+          <button className="flex justify-start items-center gap-1 mt-2" onClick={()=>setIsShowInterviewCategory((prev)=>!prev)}>
+            <Image src={interviewLogo} alt="coursesLogo" className="h-[15px] w-auto"/>
+            <p className="hover:text-gray-100 text-gray-200">Interviews</p>
+          </button>
+          <ul className={`pl-4 ${isShowInterviewCategory?'flex flex-col':'hidden'}  gap-1`}>
+            <li className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={allLogo} alt="saved" className="h-[13px] w-auto"/>
+              <ProgressLink prefetch href={'/workspace/interviews/all'} className="text-sm  cursor-pointer">All ({currentAllInterviews?.length})</ProgressLink>
+            </li>
+            <li className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={pendingLogo} alt="saved" className="h-[13px] w-auto"/>
+              <ProgressLink prefetch href={'/workspace/interviews/pending'} className="text-sm  cursor-pointer">Pending ({pendingInterviewCount})</ProgressLink>
+            </li>
+            <li className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={completedLogo} alt="explore" className="h-[13px] w-auto"/>
+              <ProgressLink prefetch href={'/workspace/interviews/completed'} className="text-sm  cursor-pointer">Completed ({completedInterviewCount})</ProgressLink>
+            </li>
+            <li className="flex justify-start items-center gap-1 hover:text-gray-300">
+              <Image src={expiredLogo} alt="expire" className="h-[13px] w-auto"/>
+              <ProgressLink prefetch href={'/workspace/interviews/expired'} className="text-sm  cursor-pointer">Expired ({expiredInterviewCount})</ProgressLink>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div className="w-full h-auto flex justify-start items-end ">
+        <ProgressLink href={'/profile'} className="flex items-center gap-2 cursor-pointer">
+          <p className="px-2 py-1 rounded-sm bg-gray-600 text-sm uppercase">{currentUser?.user?.name.slice(0,2)}</p>
+          <p className="text-gray-300 lowercase">{currentUser?.user?.name.split(' ')[0]}</p>
+        </ProgressLink>
+      </div>
+    </div>
+  )
+}
+
+export default CandidatesWorkSpaceMenu

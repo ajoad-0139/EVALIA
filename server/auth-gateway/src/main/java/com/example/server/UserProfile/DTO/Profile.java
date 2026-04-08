@@ -1,0 +1,14 @@
+package com.example.server.UserProfile.DTO;
+
+import com.example.server.resume.DTO.ResumeDataRequest;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Profile {
+    private ResumeDataRequest resumeData;
+    private UserDTO user;
+}

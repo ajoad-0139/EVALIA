@@ -1,0 +1,155 @@
+package com.example.server.resume.Controller;
+
+import com.example.server.UserProfile.Service.UserService;
+import com.example.server.resume.DTO.*;
+import com.example.server.resume.Proxy.ResumeJsonProxy;
+import com.example.server.resume.Proxy.ResumeProxy;
+import com.example.server.resume.exception.ResumeNotFoundException;
+import com.example.server.security.models.userEntity;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.http.*;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.security.Principal;
+import java.util.Collections;
+import java.util.logging.Logger;
+
+@CrossOrigin
+@RestController
+@RequestMapping("/api/resume")
+public class ResumeController {
+
+    private static final Logger      logger = Logger.getLogger(ResumeController.class.getName());
+    private final ResumeProxy        resumeProxy;
+    private final ResumeJsonProxy    resumeJsonProxy;
+    private final UserDetailsService userDetailsService;
+    private final UserService        userService;
+
+    public ResumeController(ResumeProxy        resumeProxy,
+                            ResumeJsonProxy    resumeJsonProxy,
+                            UserDetailsService userDetailsService,
+                            UserService        userService) {
+
+        this.userDetailsService = userDetailsService;
+        this.resumeJsonProxy    = resumeJsonProxy;
+        this.resumeProxy        = resumeProxy;
+        this.userService        = userService;
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadAndForwardResume(@RequestParam("file") MultipartFile file, Principal principal) {
+
+        logger.info("Received file upload request from user: " + principal.getName());
+
+        userEntity user = (userEntity) userDetailsService.loadUserByUsername(principal.getName());
+
+        try {
+            String response = resumeProxy.forwardResumeToResumeService(
+                    file,
+                    principal.getName(),
+                    user.getId().toString()
+            );
+            logger.info("returned response from the resume service " + response);
+            /*
+              Updates the user's resume status and stores the URL when the response is successful
+              returns error otherwise.
+             */
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode jsonNode   = mapper.readTree(response);
+
+            if (jsonNode.has("success") && !jsonNode.get("success").asBoolean()) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(jsonNode);
+            }
+            String downloadUrl = jsonNode.path("data").path("downloadUrl").asText();
+            user.setHasResume(true);
+            user.setResumeUrl(downloadUrl);
+            userService.saveUpdatedUser(user);
+
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to forward: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/extract")
+    public ResponseEntity<?> extractDetailsFromResume(Principal principal) {
+        userEntity user = (userEntity) userDetailsService.loadUserByUsername(principal.getName());
+
+        if (!user.isHasResume()) {
+            throw new ResumeNotFoundException("No resume found for user: " + principal.getName());
+        }
+
+        ResponseEntity<String> response =  resumeJsonProxy.extractDetailsFromResume(new ResumeForwardWrapper(
+                null,
+                user.getResumeUrl(),
+                user.getId(),
+                user.getUsername(),
+                principal.getName()
+        ));
+
+        return ResponseEntity.status(response.getStatusCode())
+                .body(response.getBody());
+    }
+
+    @PostMapping("/save")
+    public ResponseEntity<String> saveResume(@RequestBody ResumeDataRequest resumeData, Principal principal) {
+        userEntity user = (userEntity) userDetailsService.loadUserByUsername(principal.getName());
+        logger.info("Received resume request with resume data: " + resumeData.toString());
+        ResponseEntity<String> response = resumeJsonProxy.saveResume(new ResumeForwardWrapper(
+                resumeData,
+                null,
+                user.getId(),
+                user.getDisplayName(),
+                principal.getName()
+        ));
+        logger.info("Response from saveResume: " + response.getBody());
+        return ResponseEntity.status(response.getStatusCode())
+                .body(response.getBody());
+    }
+
+    @PostMapping("/basic-search")
+    public ResponseEntity<?> basicSearchResume(@RequestBody BasicSearchRequest basicSearchRequest, Principal principal) {
+
+        logger.info("Received basic search request from user: " + principal.getName());
+
+        try {
+            ResponseEntity<String> jsonResponse          = resumeJsonProxy.basicSearchResume(basicSearchRequest);
+            ObjectMapper mapper          = new ObjectMapper();
+            BasicSearchResponse response = mapper.readValue(jsonResponse.getBody(), BasicSearchResponse.class);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new BasicSearchResponse(false, Collections.emptyList(), "Failed: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{jobId}/shortlist/{k}")
+    public ResponseEntity<String> getTopKResumesForJob( @PathVariable("jobId") String jobId,
+                                                   @PathVariable("k") int k,
+                                                   Principal              principal) {
+
+        logger.info("Received request to get top " + k + " resumes for job ID: " + jobId + " from user: " + principal.getName());
+
+        ResponseEntity<String> response = resumeJsonProxy.getTopKResumesForJob(jobId, k);
+        return ResponseEntity.status(response.getStatusCode())
+                .body(response.getBody());
+    }
+
+    @PostMapping("/shortlist/{k}")
+    public ResponseEntity<String> globalResumeSearch(@PathVariable("k") int k,
+                                                     @RequestBody GlobalSearchRequest globalSearchRequest) {
+        ResponseEntity<String> response = resumeJsonProxy.globalResumeSearch(k, globalSearchRequest);
+        return ResponseEntity.status(response.getStatusCode())
+                .body(response.getBody());
+    }
+
+
+}

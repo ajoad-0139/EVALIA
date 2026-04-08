@@ -1,0 +1,145 @@
+package com.example.server.UserProfile.Controller;
+
+import com.example.server.UserProfile.DTO.OrganizationCreateRequest;
+import com.example.server.UserProfile.DTO.OrganizationUpdateDTO;
+import com.example.server.UserProfile.Service.OrganizationService;
+import com.example.server.UserProfile.models.OrganizationEntity;
+import org.modelmapper.ModelMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.security.Principal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
+@RestController
+@RequestMapping("/api/organization")
+public class OrganizationController {
+
+    private static final Logger      logger = Logger.getLogger(OrganizationController.class.getName());
+    private final        OrganizationService organizationService;
+    private final        ModelMapper modelMapper;
+
+    public OrganizationController(OrganizationService organizationService,
+                                  ModelMapper         modelMapper) {
+        this.organizationService = organizationService;
+        this.modelMapper         = modelMapper;
+    }
+
+
+    @GetMapping("/{OrganizationId}")
+    public ResponseEntity<?> getOrganizationByOrganizationId(@PathVariable String OrganizationId) {
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(organizationService.getOrganizationById(OrganizationId));
+    }
+
+
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllOrganizationsOfAnUser(Principal principal) {
+        try {
+            List<OrganizationEntity> organizations = organizationService.getOrganizationsByOwnerEmail(principal.getName());
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body( Map.of(
+                            "success", true,
+                            "data", organizations,
+                            "count", organizations.size()
+                            ));
+        } catch (Exception e) {
+            logger.severe("Error retrieving organizations: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body( Map.of(
+                            "success", false,
+                            "data", "Failed to retrieve organizations: " + e.getMessage()
+                    ));
+        }
+    }
+
+
+    @PostMapping("/new")
+    public ResponseEntity<?> createOrganizationProfile(@RequestBody OrganizationCreateRequest organizationRequestDTO,
+                                                       Principal principal) {
+        try{
+            logger.info("Creating Organization Profile request received from" + principal.getName());
+
+            OrganizationEntity entity = modelMapper.map(organizationRequestDTO, OrganizationEntity.class);
+            entity.setCreatedAt(LocalDateTime.now());
+            entity.setUpdatedAt(LocalDateTime.now());
+            entity.setOwnerEmail(principal.getName());
+
+            return ResponseEntity.ok(
+                    organizationService.createOrganizationProfile(entity, principal.getName())
+            );
+
+        }catch (Exception e){
+            logger.severe("Error creating organization profile: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to create organization profile: " + e.getMessage());
+        }
+    }
+
+
+    @PatchMapping("/{OrganizationId}")
+    public ResponseEntity<?> updateOrganization( @PathVariable String OrganizationId,
+                                                 @RequestBody  OrganizationUpdateDTO dto,
+                                                 Principal principal) {
+
+        OrganizationEntity org = organizationService.updateOrganizationProfile( dto, OrganizationId, principal.getName());
+
+        if( org == null) {
+            logger.warning("Organization not found or user not authorized to update it. Check Server log for details.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Organization not found or you are not authorized to update it.");
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "data", org
+        ));
+    }
+
+    @DeleteMapping("/{OrganizationId}")
+    public ResponseEntity<?> deleteOrganization(@PathVariable String OrganizationId,
+                                                Principal principal) {
+        try {
+            boolean deleted = organizationService.deleteOrganization(OrganizationId, principal.getName());
+            if (deleted) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body( Map.of(
+                                "success", true,
+                                "data", "Organization deleted successfully"
+                                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body( Map.of(
+                                "success", false,
+                                "data", "Organization not found or you are not authorized to delete it."
+                        ));
+            }
+        } catch (Exception e) {
+            logger.severe("Error deleting organization: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to delete organization: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/{organizationId}/profile-photo")
+    public ResponseEntity<Map<String, Object>> uploadOrganizationProfilePhoto(@RequestParam("file") MultipartFile file,
+                                                                              @PathVariable ("organizationId") String organizationId,
+                                                                              Principal principal) {
+        try {
+            String url = organizationService.updateOrganizationProfilePicture(file, organizationId ,principal.getName());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "coverPhotoUrl", url
+            ));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+}

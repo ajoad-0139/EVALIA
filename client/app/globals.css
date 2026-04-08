@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@tailwind utilities;
+
+textarea{
+    resize: none;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Chrome, Edge, Safari */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    /* makes the default dark icon white */
+    cursor: pointer;
+}
+
+/* Firefox (it shows a spinner+calendar) */
+input[type="date"] {
+    color-scheme: dark;
+    /* makes built-in controls adapt to dark mode */
+}
+
+input[type='number'] {
+    -moz-appearance: textfield;
+}
+
+.neon-glow {
+    background: white;
+    box-shadow: 0 0 15px 5px rgba(255, 255, 255, 0.6),
+        0 0 30px 10px rgba(255, 255, 255, 0.3);
+    opacity: 0.6;
+}
+
+.scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+}
+
+.scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: #0B192C transparent;
+}
+.scroll-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #a29bfe, #6c5ce7);
+    border-radius: 8px;
+}
+

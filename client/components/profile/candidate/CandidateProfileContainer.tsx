@@ -1,0 +1,386 @@
+'use client'
+import CourseCard from "@/components/profile/candidate/suggested/CourseCard"
+import JobCard from "@/components/profile/candidate/suggested/JobCard"
+import CandidatesResumePanel from "@/components/utils/CandidatesResumePanel"
+import { Edit, Edit3, File, ImagePlus, Save, X , User, Search, Book} from "lucide-react"
+import { ClipLoader, ScaleLoader } from "react-spinners"
+import Image from "next/image"
+import { useRef, useState , useEffect} from "react"
+import CandidatesProfileResumePanel from "./Resume/CandidatesProfileResumePanel"
+import UploadResume from "./UploadResume"
+import { useAppDispatch, useAppSelector } from "@/redux/lib/hooks"
+import { userCoverPhotoUpdateStatus, userProfilePhotoUpdateStatus, userBasicInfoUpdateStatus , updateUserCoverPhoto, updateUserProfilePhoto, updateUserData, setUserBasicInfoUpdateStatus, analyzedUserResume, user} from "@/redux/features/auth"
+import AnalyzeResumeSection from "./Resume/AnalyzeResumeSection"
+import axios from "axios"
+import { allCourses, allCourseStatus, getAllCourses } from "@/redux/features/course"
+import Loading from "@/components/utils/Loading"
+
+
+interface propType {
+  user:any
+}
+
+const CandidateProfileContainer = () => {
+  const coverPhotoRef = useRef<null|HTMLInputElement>(null)
+  const profilePhotoRef = useRef<null|HTMLInputElement>(null)
+  const resumeContainerRef = useRef<null | HTMLDivElement>(null)
+  const resumePreviewContainerRef = useRef<null | HTMLDivElement>(null)
+
+  const[isEditAbout, setIsAboutEdit]=useState<boolean>(false);
+  const [isUploadResume, setIsUploadResume] = useState<boolean>(false);
+  const [isShowResume, setIsShowResume] = useState<boolean>(false);
+  const [isEditBasicInfo, setIsEditBasicInfo]= useState<boolean>(false);
+  const [isLoadingFetchJobs, setIsLoadingFetchJobs]=useState<boolean>(false);
+
+  const [suggestedJobs, setSuggestedJobs]=useState<any>([]);
+
+  const currentUser = useAppSelector(user)
+
+  const [form, setForm] = useState({
+    name: currentUser?.user?.name||'',
+    bio: currentUser?.user?.bio || '',
+    location:currentUser?.user?.location||'',
+    aboutMe:currentUser?.user?.aboutMe||''
+  });
+  
+    const dispatch = useAppDispatch()
+  
+    const currentCoverPhotoStatus = useAppSelector(userCoverPhotoUpdateStatus)
+    const currentProfilePhotoStatus = useAppSelector(userProfilePhotoUpdateStatus)
+    const currentUserBasicInfoUpdateStatus = useAppSelector(userBasicInfoUpdateStatus)
+    const currentAnalyzedUserResume = useAppSelector(analyzedUserResume)
+    const currentAllCourses = useAppSelector(allCourses)
+    const currentAllCoursesStatus = useAppSelector(allCourseStatus)
+
+  const handleBasicInfoChange = (e: React.ChangeEvent<HTMLInputElement>|React.ChangeEvent<HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleBasicInfoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    dispatch(updateUserData(form))
+    console.log("Updated Profile:", form);
+  };
+
+  const handleUploadCoverPhoto = async(e:React.ChangeEvent<HTMLInputElement>)=>{
+      const file = e.target.files?.[0]??null;
+      if(!file) return;
+      const newFormData = new FormData();
+      newFormData.append("file", file);
+      dispatch(updateUserCoverPhoto(newFormData))
+      
+      // cover photo upload logic goes here 
+    }
+    const handleUploadProfilePhoto = (e:React.ChangeEvent<HTMLInputElement>)=>{
+      const file = e.target.files?.[0]??null;
+      if(!file) return;
+      const newFormData = new FormData();
+      newFormData.append("file", file);
+      dispatch(updateUserProfilePhoto(newFormData))
+      
+      // profile photo upload logic goes here 
+    }
+  const handleEditAbout = ()=>{
+    // logic goes here 
+    setIsAboutEdit((prev)=>!prev)
+  }
+  const handleSaveEditedAbout = ()=>{
+    // logic goes here 
+    setIsAboutEdit((prev)=>!prev)
+  }
+
+  useEffect(()=>{
+    const fetchSuggestedJobs = async()=>{
+      try {
+        setIsLoadingFetchJobs(true);
+        const response = await axios.get('http://localhost:8080/api/job/suggestions',{withCredentials:true})
+        console.log(response.data, 'suggested jobs')
+        setSuggestedJobs(response.data.data);
+      } catch (error:any) {
+        console.log(error)
+      }
+      finally{
+        setIsLoadingFetchJobs(false);
+      }
+    }
+    if(!suggestedJobs.length)fetchSuggestedJobs();
+  },[])
+
+  useEffect(()=>{
+      if(currentUserBasicInfoUpdateStatus==='success') {
+        setIsEditBasicInfo(false); setIsAboutEdit(false); dispatch(setUserBasicInfoUpdateStatus('idle'));
+      }
+    },[currentUserBasicInfoUpdateStatus])
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (resumeContainerRef.current && !resumeContainerRef.current.contains(event.target as Node)) {
+         setIsUploadResume(false);
+      }
+      if (resumePreviewContainerRef.current && !resumePreviewContainerRef.current.contains(event.target as Node)) {
+         setIsShowResume(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isUploadResume, isShowResume]);
+  useEffect(()=>{
+    if(!currentAllCourses?.length) dispatch(getAllCourses());
+  },[])
+  useEffect(()=>console.log(currentUser,'current user'))
+  return (
+      <div className="w-full h-full bg-gray-950/80 flex items-start justify-center py-[10px] ">
+      <div className="w-[95%] min-[1600px]:w-[85%]  h-full rounded-lg flex justify-center items-center p-[6px] gap-[13px]">
+        <div className="w-[60%] h-full flex flex-col gap-[14px] overflow-y-scroll scrollbar-hidden ">
+            <section className='w-full h-auto bg-slate-900 rounded-xl'>
+                <div className="w-full h-[200px] relative rounded-t-xl">
+                  {
+                    currentCoverPhotoStatus==='pending'?<div className="absolute top-0 left-0 w-full h-full bg-gray-900/70 flex justify-center items-center">
+                      <ClipLoader size={30} color="white"/>
+                    </div>:null
+                  }
+                    {
+                      currentUser?.user?.coverPictureUrl?
+                        <Image src={currentUser.user.coverPictureUrl } alt="profile-photo" width={1000} height={500} className=" w-full h-full object-cover rounded-t-xl"/>
+                      :
+                      <div className="w-full h-full bg-slate-900 rounded-t-xl border-b border-gray-500 flex justify-center items-center">
+                        <ImagePlus className=" w-[60px] h-[60px] text-gray-500"/>
+                      </div>
+                    }
+                    <div className="absolute bottom-[-22%] min-[1600px]:bottom-[-25%] left-[5%] w-[120px] h-[120px] min-[1600px]:w-[150px] min-[1600px]:h-[150px] rounded-full">
+                        <input ref={profilePhotoRef} type="file" accept="image" hidden onChange={handleUploadProfilePhoto} />
+                        <button className="cursor-pointer rounded-full relative w-full h-full" onClick={()=>profilePhotoRef.current?.click()} >
+                          {
+                            currentProfilePhotoStatus==='pending'?<div className="absolute top-0 left-0 w-full h-full rounded-full bg-gray-900/70 flex justify-center items-center">
+                              <ClipLoader size={30} color="white"/>
+                            </div>:null
+                          }
+                          {
+                            currentUser?.user?.profilePictureUrl?
+                              <Image src={currentUser.user.profilePictureUrl } alt="profile-photo" width={100} height={100} className=" w-full h-full rounded-full object-cover"/>
+                            :
+                            <div className="w-full h-full bg-slate-900 rounded-full border border-gray-500 flex justify-center items-center">
+                              <User className=" w-[40px] h-[40px] text-gray-500"/>
+                            </div>
+                          }
+                        </button>
+                    </div>
+                    <div className="absolute top-3 right-4 ">
+                        <input ref={coverPhotoRef} type="file" accept="image" hidden onChange={handleUploadCoverPhoto} />
+                        <button onClick={()=>coverPhotoRef.current?.click()} className="cursor-pointer relative group">
+                        <p className="absolute top-[100%] right-[50%] group-hover:flex w-[200px] hidden px-4 py-1 rounded-lg bg-gray-800 text-[12px] text-gray-200 justify-center">Change / Add Cover Photo</p>
+                        <Edit/>
+                        </button>
+                    </div>
+                </div>
+                {
+                  !isEditBasicInfo?
+                  <div className="flex-1 w-full pt-[7%] pl-[7%] flex flex-col">
+                    <p className="text-xl font-semibold text-gray-200 flex items-center">{currentUser?.user?.name} <button onClick={()=>setIsEditBasicInfo(true)}><Edit3 className="size-4 ml-2"/></button></p>
+                    <div className="w-full min-h-[80px] flex justify-between items-start">
+                      <div className="w-[60%] h-auto">
+                          <p className="w-full max-h-[40px] text-[13px] flex justify-start items-start overflow-hidden text-gray-400">{currentUser?.user?.bio?currentUser.user.bio:'No bio found, make a short bio'}</p>
+                          <p className="w-full max-h-[40px] text-[13px] flex justify-start  overflow-hidden text-gray-400 items-center"><span> {currentUser?.user?.location?`${currentUser.user.location}`:'No location found, set you location'}</span> <span className="text-2xl font-bold m-1 mt-[-8px]">.</span> <span>{currentUser?.user?.email}</span></p>
+                      </div>
+                      <div className="w-auto  h-full flex flex-col justify-start items-end gap-2 pr-[20px]">
+                        {
+                          isShowResume && <div className="fixed top-0 left-0 right-0 bottom-0 backdrop-blur-sm z-[150] flex justify-center items-center">
+                              <div ref={resumePreviewContainerRef} className="w-[60%] h-[95%] bg-gray-200 rounded-lg overflow-y-scroll scroll-container">
+                                <iframe src={currentUser?.user?.resumeUrl || ''} width="100%" height="auto" className="w-full h-full object-contain"></iframe>
+                              </div>
+                        </div>
+                        }
+                        {
+                          currentUser?.user?.resumeUrl && <div className="flex gap-1 items-center">
+                          <File className="text-green-700 size-6"/>
+                          <button onClick={()=>setIsShowResume(true)} className="flex flex-col text-[11px] text-gray-400">
+                            <p className="">Resume.pdf</p>
+                            {/* <p className="">200.20kb</p> */}
+                          </button>
+                        </div>
+                        }
+                        {
+                          isUploadResume && <div  className="fixed top-0 left-0 right-0 bottom-0 flex justify-center items-center backdrop-blur-sm">
+                            <div className="absolute top-3 right-3">
+                              <X className="size-7"/>
+                            </div>
+                          <div ref={resumeContainerRef} className="w-[40%] max-h-[95%] overflow-y-scroll scrollbar-hidden ">
+                            <div className="w-full h-auto ">
+                              <UploadResume setIsUploadResume={setIsUploadResume}/>
+                            </div>
+                          </div>
+                        </div>
+                        }
+                        <button onClick={()=>setIsUploadResume(true)} className="text-[11px] px-4 py-1 rounded-lg cursor-pointer hover:text-gray-50 bg-gray-800 hover:bg-gray-600">
+                          Upload a new CV
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  :
+                   <form
+                      onSubmit={handleBasicInfoSubmit}
+                      className="flex flex-col gap-4 w-full px-[7%] pt-[8%] pb-[3%] bg-slate-900 rounded-xl "
+                    >
+                      {/* Full Name */}
+                      <div>
+                        <label htmlFor="name" className="block text-sm text-gray-400 mb-1">
+                          Full Name
+                        </label>
+                        <input
+                          id="name"
+                          name="name"
+                          value={form.name}
+                          onChange={handleBasicInfoChange}
+                          className="w-full p-2 rounded bg-gray-800 text-white text-sm focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g. John Doe"
+                        />
+                      </div>
+
+                      {/* Title */}
+                      <div>
+                        <label htmlFor="bio" className="block text-sm text-gray-400 mb-1">
+                          Title / Position
+                        </label>
+                        <input
+                          id="bio"
+                          name="bio"
+                          value={form.bio}
+                          onChange={handleBasicInfoChange}
+                          className="w-full p-2 rounded bg-gray-800 text-white text-sm focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g. Software Engineer"
+                        />
+                      </div>
+
+                      {/* Location */}
+                      <div>
+                        <label htmlFor="location" className="block text-sm text-gray-400 mb-1">
+                          Location
+                        </label>
+                        <input
+                          id="location"
+                          name="location"
+                          value={form.location}
+                          onChange={handleBasicInfoChange}
+                          className="w-full p-2 rounded bg-gray-800 text-white text-sm focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g. Dhaka, Bangladesh"
+                        />
+                      </div>
+
+                      {/* Buttons */}
+                      <div className="flex gap-3 mt-4">
+                        <button
+                          disabled={currentUserBasicInfoUpdateStatus==='pending'?true:false}
+                          type="submit"
+                          className="flex-1 py-2 flex justify-center items-center gap-2 rounded-md cursor-pointer bg-green-700 hover:bg-green-600 text-white font-medium"
+                        >
+                          {currentUserBasicInfoUpdateStatus==='pending'?<ClipLoader size={17} color="white"/> :'Save Changes'}
+                        </button>
+                        <button
+                          onClick={() => setIsEditBasicInfo(false)}
+                          type="button"
+                          className="flex-1 py-2 flex justify-center items-center gap-2 rounded-md cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+
+                }
+            </section>
+            {
+              isEditAbout?
+              <section className="w-full min-h-[200px] bg-slate-900 rounded-xl p-[14px] pl-[7%] pt-[25px]">
+                  <div className="w-full h-full relative">
+                      <textarea value={form.aboutMe} onChange={handleBasicInfoChange} name="aboutMe" id="about" className="focus:border-2 focus:border-gray-600 w-full h-full rounded-xl border border-gray-800 outline-none focus:right-1 focus:ring-gray-400 scroll-container p-[14px] text-[13px] text-gray-300">
+                      </textarea>
+                      <label htmlFor="about" className="absolute left-1 top-[-14px] px-4 py-1 rounded-lg bg-slate-900 text-gray-300 text-[15px] font-semibold ">
+                          <div className="flex gap-2">
+                            <p>Edit About</p>
+                            <button onClick={handleBasicInfoSubmit}>
+                              <Save className="size-4 cursor-pointer"/>
+                            </button>
+                          </div>
+                      </label>
+                  </div>
+              </section>
+              :
+              <section className="w-full  bg-slate-900 rounded-xl flex flex-col p-[14px] gap-[10px] pl-[7%]">
+                <div className="flex gap-2 items-center">
+                  <p className="text-gray-200 font-semibold tracking-wider">About</p>
+                  <button onClick={handleEditAbout} className="cursor-pointer">
+                    <Edit3 className="size-4"/>
+                  </button>
+                </div>
+                <p className="text-[13px] text-gray-300">{currentUser?.user?.aboutMe?currentUser.user.aboutMe:'You haven’t added an About section yet. Use this space to introduce yourself, share your background, interests, or anything you’d like others to know about you.'}
+                  </p>
+            </section>
+            }
+            <section className="w-full h-auto bg-slate-900 rounded-xl pb-[40px] ">
+              {
+                currentUser?.resumeData?<CandidatesProfileResumePanel isPreview={false}/>:currentAnalyzedUserResume?<CandidatesProfileResumePanel isPreview={true}/>: <AnalyzeResumeSection user={currentUser} setIsUploadResume={setIsUploadResume}/>
+              }
+            </section>
+        </div>
+        <div className="w-[40%] h-full   gap-[14px] ">
+          <section className="w-full h-full bg-slate-900 rounded-xl flex flex-col overflow-y-scroll scrollbar-hidden gap-3 p-[16px]">
+              <section className="w-full h-[45%] shrink-0 flex flex-col gap-3">
+                <p className="text-lg text-gray-300 font-semibold pb-2 border-b-[1px] border-gray-700">Suggested Jobs : </p>
+                <div className="w-full flex-1 gap-2 flex flex-col overflow-y-scroll scroll-container">
+                  {
+                    isLoadingFetchJobs?
+                    <div className="w-full h-full flex justify-center items-center">
+                      <ScaleLoader barCount={4} color="white"/>
+                    </div>:
+                    suggestedJobs.length?
+                      suggestedJobs.map((item:any)=><JobCard key={item.jobId} jobItem={item}/>)
+                    :
+                    <section className="flex flex-col w-full h-full items-center justify-center text-center px-4">
+                      <div className="flex flex-col items-center">
+                        <div className="p-2 rounded-full bg-gray-100 mb-4">
+                          <Search className="w-6 h-6 text-gray-500" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-gray-300">
+                          No Suggested Jobs Available
+                        </h2>
+                        <p className="mt-2 text-sm text-gray-400 max-w-md">
+                          Currently, there are no suggested jobs available for you. Please check back later for new opportunities.
+                        </p>
+                      </div>
+                    </section>
+                  }
+                </div>
+              </section>
+              <section className="w-full h-[55%] shrink-0 flex flex-col gap-3">
+                <p className="text-lg text-gray-300 font-semibold pb-2 border-b-[1px] border-gray-700">Suggested Courses : </p>
+                <div className="w-full flex-1 flex flex-col overflow-y-scroll scroll-container">
+                  {
+                    currentAllCoursesStatus==='pending'?<Loading/>:
+                    currentAllCourses.length?
+                    currentAllCourses.map((item:any)=><CourseCard key={item.videoId} fromProfile={true} course={item}/>)
+                    :<section className="flex flex-col w-full h-full items-center justify-center text-center px-4">
+                      <div className="flex flex-col items-center">
+                        <div className="p-2 rounded-full bg-gray-100 mb-4">
+                          <Book className="w-6 h-6 text-gray-500" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-gray-300">
+                          No Suggested courses Available
+                        </h2>
+                        <p className="mt-2 text-sm text-gray-400 max-w-md">
+                          Currently, there are no suggested courses available for you. Please check back later for new opportunities.
+                        </p>
+                      </div>
+                    </section>
+                  }
+                </div>
+              </section>
+          </section>
+        </div>
+        </div>
+      </div>
+  )
+}
+
+export default CandidateProfileContainer
